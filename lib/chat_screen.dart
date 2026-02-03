@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:db_mcp_demo_flutter_app/widgets/ai_rich_data_card.dart';
 import 'package:db_mcp_demo_flutter_app/widgets/ai_text_message.dart';
 
@@ -25,17 +26,46 @@ class _ChatScreenState extends State<ChatScreen> {
   final List<ChatMessage> _messages = [];
   bool _isLoading = false;
 
+  // Sprachsteuerung
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
+
   @override
   void initState() {
     super.initState();
+    _speech = stt.SpeechToText();
     _messages.add(ChatMessage(
-      text: 'Hallo! Ich bin dein DB Expert AI Begleiter. Wie kann ich dir helfen?',
+      text: 'Hallo! Ich bin dein DB Begleiter. Wie kann ich dir helfen?',
       isUser: false,
       type: 'GENERAL',
     ));
   }
 
-  // Hilfsmethode um die Historie für Genkit zu formatieren
+  void _listen() async {
+    if (!_isListening) {
+      bool available = await _speech.initialize(
+        onStatus: (val) => print('onStatus: $val'),
+        onError: (val) => print('onError: $val'),
+      );
+      if (available) {
+        setState(() => _isListening = true);
+        _speech.listen(
+          onResult: (val) => setState(() {
+            _controller.text = val.recognizedWords;
+            // Falls der Nutzer aufhört zu sprechen, sende automatisch
+            if (val.finalResult) {
+              setState(() => _isListening = false);
+              _sendMessage(val.recognizedWords);
+            }
+          }),
+        );
+      }
+    } else {
+      setState(() => _isListening = false);
+      _speech.stop();
+    }
+  }
+
   List<Map<String, dynamic>> _getHistory() {
     return _messages.map((msg) {
       return {
@@ -119,7 +149,10 @@ class _ChatScreenState extends State<ChatScreen> {
                     children: [
                       AiTextMessage(text: msg.text),
                       if (msg.type == 'TRAIN_STATUS' && msg.richData != null)
-                        _buildAiRichDataCard(context, msg.richData!),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 40, bottom: 16),
+                          child: AiRichDataCard(data: msg.richData!),
+                        ),
                     ],
                   );
                 }
@@ -148,27 +181,36 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildAiRichDataCard(BuildContext context, Map<String, dynamic> data) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 40, bottom: 16),
-      child: AiRichDataCard(data: data),
-    );
-  }
-
   Widget _buildInputField(bool isDark, Color surfaceColor) {
     return Container(
       padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF101622) : const Color(0xFFF6F6F8),
+        border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2))),
+      ),
       child: Row(
         children: [
+          IconButton(
+            icon: Icon(_isListening ? Icons.mic : Icons.mic_none, color: _isListening ? Colors.red : Colors.grey),
+            onPressed: _listen,
+          ),
           Expanded(
-            child: TextField(
-              controller: _controller,
-              onSubmitted: _sendMessage,
-              decoration: const InputDecoration(hintText: 'Nachricht...'),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: surfaceColor,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: TextField(
+                controller: _controller,
+                onSubmitted: _sendMessage,
+                decoration: const InputDecoration(hintText: 'Wohin willst du?', border: InputBorder.none),
+              ),
             ),
           ),
+          const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.send),
+            icon: const Icon(Icons.send, color: Color(0xFF135BEC)),
             onPressed: () => _sendMessage(_controller.text),
           ),
         ],
