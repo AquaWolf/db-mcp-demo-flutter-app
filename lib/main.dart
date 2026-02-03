@@ -1,12 +1,25 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:myapp/chat_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:db_mcp_demo_flutter_app/chat_screen.dart';
 import 'package:provider/provider.dart';
-import 'dart:developer' as developer;
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialisiere Firebase
+  await Firebase.initializeApp();
+  
+  // Automatischer anonymer Login für die Demo
+  try {
+    await FirebaseAuth.instance.signInAnonymously();
+    print("Erfolgreich anonym eingeloggt");
+  } catch (e) {
+    print("Fehler beim Firebase Login: $e");
+  }
+
   runApp(
     ChangeNotifierProvider(
       create: (context) => ThemeProvider(),
@@ -50,7 +63,7 @@ class MyApp extends StatelessWidget {
       colorScheme: ColorScheme.fromSeed(
         seedColor: primaryColor,
         brightness: Brightness.dark,
-        background: backgroundDark,
+        surface: backgroundDark,
         primary: primaryColor,
       ),
       textTheme: darkTextTheme,
@@ -87,7 +100,7 @@ class MyApp extends StatelessWidget {
        colorScheme: ColorScheme.fromSeed(
         seedColor: primaryColor,
         brightness: Brightness.light,
-        background: backgroundLight,
+        surface: backgroundLight,
       ),
        textTheme: lightTextTheme,
        appBarTheme: AppBarTheme(
@@ -358,12 +371,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => ChatScreen()),
+                MaterialPageRoute(builder: (context) => const ChatScreen()),
               );
             },
-            child: Row(
+            child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
+              children: [
                 Text('Start Chatting'),
                 SizedBox(width: 8),
                 Icon(Icons.arrow_forward, size: 20),
@@ -372,7 +385,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           ),
           const SizedBox(height: 16),
            Text(
-            'Powered by GPT-4 & DB API',
+            'Powered by Gemini & DB API',
             style: TextStyle(
               fontSize: 12,
               color: isDark ? Colors.grey[500] : Colors.grey[400],
